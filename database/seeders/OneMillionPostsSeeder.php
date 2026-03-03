@@ -38,6 +38,7 @@ class OneMillionPostsSeeder extends Seeder
             DB::table('post_translations')->truncate();
             DB::table('post_tag')->truncate();
             DB::table('comments')->truncate();
+            DB::table('category_post')->truncate();
             DB::table('posts')->truncate();
             DB::statement('PRAGMA foreign_keys = ON');
         } else {
@@ -45,6 +46,7 @@ class OneMillionPostsSeeder extends Seeder
             DB::table('post_translations')->truncate();
             DB::table('post_tag')->truncate();
             DB::table('comments')->truncate();
+            DB::table('category_post')->truncate();
             DB::table('posts')->truncate();
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
         }
@@ -65,6 +67,7 @@ class OneMillionPostsSeeder extends Seeder
         for ($i = 0; $i < $totalPosts / $chunkSize; $i++) {
             $postsData = [];
             $translationsData = [];
+            $categoryPostData = [];
             $now = now()->toDateTimeString();
 
             for ($j = 0; $j < $chunkSize; $j++) {
@@ -74,7 +77,6 @@ class OneMillionPostsSeeder extends Seeder
                 $postsData[] = [
                     'id' => $postId,
                     'slug' => $slug,
-                    'category_id' => $categories[array_rand($categories)],
                     'author_id' => $authorId,
                     'status' => 'published',
                     'published_at' => $now,
@@ -82,6 +84,11 @@ class OneMillionPostsSeeder extends Seeder
                     'is_breaking' => $faker->boolean(2), // 2% breaking
                     'created_at' => $now,
                     'updated_at' => $now,
+                ];
+
+                $categoryPostData[] = [
+                    'category_id' => $categories[array_rand($categories)],
+                    'post_id' => $postId,
                 ];
 
                 // Bangla Translation
@@ -104,8 +111,9 @@ class OneMillionPostsSeeder extends Seeder
             }
 
             // Bulk Insert
-            DB::transaction(function () use ($postsData, $translationsData) {
+            DB::transaction(function () use ($postsData, $translationsData, $categoryPostData) {
                 DB::table('posts')->insert($postsData);
+                DB::table('category_post')->insert($categoryPostData);
                 DB::table('post_translations')->insert($translationsData);
             });
 
@@ -113,6 +121,7 @@ class OneMillionPostsSeeder extends Seeder
 
             // To prevent memory leak on 1M iterations
             unset($postsData);
+            unset($categoryPostData);
             unset($translationsData);
         }
 
