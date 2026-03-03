@@ -1,0 +1,261 @@
+-- =====================================================================
+-- Prothom Alo Clone - Full Database Schema (English + Bangla Bilingual Support)
+-- Optimized for high performance with 1M+ records
+-- Charset: utf8mb4 (Full Bangla + English support)
+-- Collation: utf8mb4_unicode_ci
+-- Multi-language: Separate translation tables for 'bn' and 'en'
+-- Includes performance indexes for fast queries on large datasets
+-- Created: March 2026
+-- =====================================================================
+
+CREATE DATABASE IF NOT EXISTS prothom_alo_clone 
+CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
+
+USE prothom_alo_clone;
+
+-- -------------------------------------------------------------------------
+-- 1. users
+-- -------------------------------------------------------------------------
+CREATE TABLE users (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    email_verified_at TIMESTAMP NULL DEFAULT NULL,
+    password VARCHAR(255) NOT NULL,
+    avatar VARCHAR(255) NULL COMMENT 'Profile picture URL',
+    bio TEXT NULL COMMENT 'Author bio (Bangla or English)',
+    preferred_locale VARCHAR(10) DEFAULT 'bn' COMMENT 'bn / en',
+    role ENUM('admin', 'editor', 'reporter', 'user') DEFAULT 'user',
+    remember_token VARCHAR(100) NULL,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 2. categories (base table)
+-- -------------------------------------------------------------------------
+CREATE TABLE categories (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    slug VARCHAR(150) UNIQUE NOT NULL,
+    parent_id BIGINT UNSIGNED NULL COMMENT 'Sub-category support',
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- category_translations
+CREATE TABLE category_translations (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    category_id BIGINT UNSIGNED NOT NULL,
+    locale VARCHAR(10) NOT NULL COMMENT 'bn / en',
+    name VARCHAR(100) NOT NULL,
+    description TEXT NULL,
+    UNIQUE KEY unique_category_locale (category_id, locale),
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 3. tags
+-- -------------------------------------------------------------------------
+CREATE TABLE tags (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    slug VARCHAR(150) UNIQUE NOT NULL,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- tag_translations
+CREATE TABLE tag_translations (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tag_id BIGINT UNSIGNED NOT NULL,
+    locale VARCHAR(10) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    UNIQUE KEY unique_tag_locale (tag_id, locale),
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 4. posts (core news articles)
+-- -------------------------------------------------------------------------
+CREATE TABLE posts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    category_id BIGINT UNSIGNED NOT NULL,
+    author_id BIGINT UNSIGNED NOT NULL,
+    featured_image VARCHAR(255) NULL,
+    is_featured TINYINT(1) DEFAULT 0,
+    is_breaking TINYINT(1) DEFAULT 0,
+    status ENUM('draft', 'published', 'archived') DEFAULT 'draft',
+    published_at TIMESTAMP NULL DEFAULT NULL,
+    views_count BIGINT UNSIGNED DEFAULT 0,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- post_translations (Bangla + English content)
+CREATE TABLE post_translations (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    post_id BIGINT UNSIGNED NOT NULL,
+    locale VARCHAR(10) NOT NULL COMMENT 'bn / en',
+    title VARCHAR(255) NOT NULL,
+    excerpt TEXT NOT NULL,
+    content LONGTEXT NOT NULL,
+    meta_title VARCHAR(255) NULL,
+    meta_description TEXT NULL,
+    UNIQUE KEY unique_post_locale (post_id, locale),
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 5. post_tag (pivot)
+-- -------------------------------------------------------------------------
+CREATE TABLE post_tag (
+    post_id BIGINT UNSIGNED NOT NULL,
+    tag_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (post_id, tag_id),
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 6. comments
+-- -------------------------------------------------------------------------
+CREATE TABLE comments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    post_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NULL,
+    name VARCHAR(100) NULL,
+    email VARCHAR(255) NULL,
+    body TEXT NOT NULL,
+    parent_id BIGINT UNSIGNED NULL COMMENT 'Threaded replies',
+    is_approved TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 7. media (Spatie Media Library)
+-- -------------------------------------------------------------------------
+CREATE TABLE media (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    model_type VARCHAR(255) NOT NULL,
+    model_id BIGINT UNSIGNED NOT NULL,
+    uuid VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL,
+    collection_name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(255) NULL,
+    disk VARCHAR(255) NOT NULL,
+    conversions_disk VARCHAR(255) NULL,
+    size BIGINT UNSIGNED NOT NULL,
+    manipulations JSON NULL,
+    custom_properties JSON NULL,
+    generated_conversions JSON NULL,
+    responsive_images JSON NULL,
+    order_column INT UNSIGNED NULL,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+    INDEX idx_media_model (model_type, model_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 8. e_papers (digital editions)
+-- -------------------------------------------------------------------------
+CREATE TABLE e_papers (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    edition_date DATE NOT NULL,
+    pdf_path VARCHAR(255) NOT NULL,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE e_paper_translations (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    e_paper_id BIGINT UNSIGNED NOT NULL,
+    locale VARCHAR(10) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    UNIQUE KEY unique_epaper_locale (e_paper_id, locale),
+    FOREIGN KEY (e_paper_id) REFERENCES e_papers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 9-13. Spatie Laravel Permission Tables
+-- -------------------------------------------------------------------------
+CREATE TABLE permissions (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    guard_name VARCHAR(255) NOT NULL DEFAULT 'web',
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE roles (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    guard_name VARCHAR(255) NOT NULL DEFAULT 'web',
+    created_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE model_has_permissions (
+    permission_id BIGINT UNSIGNED NOT NULL,
+    model_type VARCHAR(255) NOT NULL,
+    model_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (permission_id, model_type, model_id),
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE model_has_roles (
+    role_id BIGINT UNSIGNED NOT NULL,
+    model_type VARCHAR(255) NOT NULL,
+    model_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (role_id, model_type, model_id),
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE role_has_permissions (
+    permission_id BIGINT UNSIGNED NOT NULL,
+    role_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (permission_id, role_id),
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- Performance Indexes (critical for 1M+ records)
+-- -------------------------------------------------------------------------
+-- Posts table - frequent queries
+CREATE INDEX idx_posts_status_published ON posts(status, published_at DESC);
+CREATE INDEX idx_posts_category_published ON posts(category_id, published_at DESC);
+CREATE INDEX idx_posts_slug ON posts(slug);
+CREATE INDEX idx_posts_featured ON posts(is_featured, published_at DESC);
+CREATE INDEX idx_posts_breaking ON posts(is_breaking, published_at DESC);
+
+-- Translations (fast lookup by post/category)
+CREATE INDEX idx_post_translations_post_locale ON post_translations(post_id, locale);
+CREATE INDEX idx_category_translations_category_locale ON category_translations(category_id, locale);
+
+-- Comments (fast loading per post)
+CREATE INDEX idx_comments_post_id ON comments(post_id);
+CREATE INDEX idx_comments_parent_id ON comments(parent_id);
+
+-- Media (fast attachment lookup)
+CREATE INDEX idx_media_model ON media(model_type, model_id);
+
+-- Users & roles (fast permission checks)
+CREATE INDEX idx_model_has_roles_model ON model_has_roles(model_type, model_id);
+CREATE INDEX idx_model_has_permissions_model ON model_has_permissions(model_type, model_id);
+
+-- -------------------------------------------------------------------------
+-- Optional: Initial setup data (for testing)
+-- -------------------------------------------------------------------------
+-- INSERT INTO roles (name, guard_name) VALUES 
+--     ('admin', 'web'), ('editor', 'web'), ('reporter', 'web'), ('user', 'web');
