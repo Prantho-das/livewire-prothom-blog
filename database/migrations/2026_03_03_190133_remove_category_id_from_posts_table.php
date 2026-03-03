@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('posts', function (Blueprint $table) {
-            $table->dropIndex(['category_id', 'status', 'published_at']);
             $table->dropForeign(['category_id']);
+            $table->dropIndex(['category_id', 'status', 'published_at']);
             $table->dropColumn('category_id');
         });
     }
