@@ -187,8 +187,7 @@ class HomePage extends Component
             return EPaper::query()
                 ->where('is_active', true)
                 ->orderByDesc('edition_date')
-                ->with(['translations' => fn ($q) => $q->select(['e_paper_id', 'locale', 'title'])])
-                ->select(['id', 'edition_date', 'is_active'])
+                ->select(['id', 'edition_date', 'is_active', 'pdf_path'])
                 ->first();
         });
 
