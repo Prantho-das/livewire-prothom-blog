@@ -125,7 +125,9 @@
             @endif
 
             {{-- Comments --}}
-            @php($approvedComments = $post->comments->where('is_approved', true))
+            @php
+            $approvedComments = $post->comments->where('is_approved', true);
+            @endphp
             @if($approvedComments->isNotEmpty())
             <div class="mt-8 pt-6 border-t border-gray-100">
                 <h3 class="text-lg font-black text-gray-900 mb-5">মন্তব্য ({{ $approvedComments->count() }})</h3>
