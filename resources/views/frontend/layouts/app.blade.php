@@ -19,8 +19,8 @@
     {{-- SEO / Structured Data --}}
     <script type="application/ld+json">
     {
-        "@context": "https://Schema.org",
-        "@type": "NewsMediaOrganization",
+        "@@context": "https://Schema.org",
+        "@@type": "NewsMediaOrganization",
         "name": "{{ $settings?->site_name ?? 'প্রথম ব্লগ' }}",
         "url": "{{ url('/') }}",
         "logo": "{{ $settings?->logo ? Storage::url($settings->logo) : asset('logo.png') }}"
@@ -36,10 +36,10 @@
         .card-hover:hover { transform:translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,0.12); }
         .gradient-overlay { background:linear-gradient(to top,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.25) 65%,transparent 100%); }
         .sidebar-widget { border-left:4px solid #c0392b; }
-        @keyframes ticker { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
+        @@keyframes ticker { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
         .breaking-ticker { animation:ticker 28s linear infinite; }
         .breaking-ticker:hover { animation-play-state:paused; }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         [wire\:navigate] .page-content, .wire-nav-loaded { animation: fadeIn 0.25s ease; }
         .img-lazy { filter:blur(8px); transition:filter 0.4s ease; }
         .img-lazy.loaded { filter:blur(0); }
@@ -116,7 +116,7 @@
                     <a href="{{ route('search') }}" wire:navigate class="p-2 text-gray-500 hover:text-[#c0392b] transition-colors rounded-lg hover:bg-gray-50" aria-label="অনুসন্ধান">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z"/></svg>
                     </a>
-                    <button id="mobileMenuBtn" class="lg:hidden p-2 text-gray-500 hover:text-[#c0392b] transition-colors rounded-lg hover:bg-gray-50" aria-label="মেনু" x-data @click="document.getElementById('mobileNav').classList.toggle('flex')">
+                    <button id="mobileMenuBtn" class="lg:hidden p-2 text-gray-500 hover:text-[#c0392b] transition-colors rounded-lg hover:bg-gray-50" aria-label="মেনু" x-data x-on:click="document.getElementById('mobileNav').classList.toggle('flex')">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                     </button>
                 </div>
@@ -199,8 +199,12 @@
                 <div>
                     <h3 class="text-white font-bold text-xs uppercase tracking-wider mb-4 border-b border-[#c0392b] pb-2">যোগাযোগ</h3>
                     <ul class="space-y-2 text-sm text-gray-400">
-                        @if($settings?->contact_email)<li>{{ $settings->contact_email }}</li>@endif
-                        @if($settings?->contact_phone)<li>{{ $settings->contact_phone }}</li>@endif
+                        @if($settings?->contact_email)
+                            <li>{{ $settings->contact_email }}</li>
+                        @endif
+                        @if($settings?->contact_phone)
+                            <li>{{ $settings->contact_phone }}</li>
+                        @endif
                     </ul>
                 </div>
             </div>
