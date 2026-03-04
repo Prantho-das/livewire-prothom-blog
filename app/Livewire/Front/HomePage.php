@@ -5,7 +5,6 @@ namespace App\Livewire\Front;
 use App\Models\Category;
 use App\Models\EPaper;
 use App\Models\Post;
-use App\Models\Setting;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
@@ -28,13 +27,9 @@ class HomePage extends Component
     /** @var array<int, array<string, mixed>> */
     public array $featuredPosts = [];
 
-    /** @var array<int, array<int, array<string, mixed>>> */
-    public array $categoryPosts = [];
-
     public function mount(): void
     {
         $this->featuredPosts = $this->getFeaturedPosts();
-        $this->categoryPosts = $this->getCategoryPosts();
         $this->loadMorePosts();
     }
 
@@ -44,20 +39,22 @@ class HomePage extends Component
             return;
         }
 
+        $locale = app()->getLocale();
+
         $query = Post::query()
             ->published()
             ->with([
-                'translations' => fn ($q) => $q->select(['post_id', 'locale', 'title', 'excerpt']),
+                'translation' => fn ($q) => $q->select(['id', 'post_id', 'locale', 'title', 'excerpt']),
                 'categories' => fn ($q) => $q->select(['categories.id', 'categories.slug'])
-                    ->with(['translations' => fn ($q) => $q->select(['category_id', 'locale', 'name'])]),
+                    ->with(['translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name'])]),
                 'author' => fn ($q) => $q->select(['id', 'name']),
             ])
-            ->select(['id', 'slug', 'featured_image', 'is_featured', 'is_breaking', 'views_count', 'published_at', 'author_id'])
-            ->orderByDesc('id')
+            ->select(['posts.id', 'posts.slug', 'posts.featured_image', 'posts.is_featured', 'posts.is_breaking', 'posts.views_count', 'posts.published_at', 'posts.author_id'])
+            ->orderByDesc('posts.id')
             ->limit($this->perPage + 1);
 
         if ($this->lastId) {
-            $query->where('id', '<', $this->lastId);
+            $query->where('posts.id', '<', $this->lastId);
         }
 
         $results = $query->get();
@@ -79,18 +76,20 @@ class HomePage extends Component
      */
     private function getFeaturedPosts(): array
     {
-        return Cache::remember('posts:featured', 300, function () {
+        $locale = app()->getLocale();
+
+        return Cache::remember("posts:featured:{$locale}", 300, function () {
             return Post::query()
                 ->published()
                 ->where('is_featured', true)
                 ->with([
-                    'translations' => fn ($q) => $q->select(['post_id', 'locale', 'title', 'excerpt']),
+                    'translation' => fn ($q) => $q->select(['id', 'post_id', 'locale', 'title', 'excerpt']),
                     'categories' => fn ($q) => $q->select(['categories.id', 'categories.slug'])
-                        ->with(['translations' => fn ($q) => $q->select(['category_id', 'locale', 'name'])]),
+                        ->with(['translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name'])]),
                     'author' => fn ($q) => $q->select(['id', 'name']),
                 ])
-                ->select(['id', 'slug', 'featured_image', 'is_featured', 'is_breaking', 'views_count', 'published_at', 'author_id'])
-                ->orderByDesc('published_at')
+                ->select(['posts.id', 'posts.slug', 'posts.featured_image', 'posts.is_featured', 'posts.is_breaking', 'posts.views_count', 'posts.published_at', 'posts.author_id'])
+                ->latest('published_at')
                 ->limit(5)
                 ->get()
                 ->map(fn (Post $p) => self::serializePostStatic($p))
@@ -99,44 +98,15 @@ class HomePage extends Component
         });
     }
 
-    /**
-     * @return array<int, array<int, array<string, mixed>>>
-     */
-    private function getCategoryPosts(): array
-    {
-        $categories = $this->getCachedCategories();
-
-        return Cache::remember('posts:by-category', 300, function () use ($categories) {
-            $result = [];
-            foreach ($categories->take(4) as $category) {
-                $result[$category->id] = Post::query()
-                    ->published()
-                    ->whereHas('categories', fn ($q) => $q->where('categories.id', $category->id))
-                    ->with([
-                        'translations' => fn ($q) => $q->select(['post_id', 'locale', 'title', 'excerpt']),
-                        'categories' => fn ($q) => $q->select(['categories.id', 'categories.slug'])
-                            ->with(['translations' => fn ($q) => $q->select(['category_id', 'locale', 'name'])]),
-                    ])
-                    ->select(['id', 'slug', 'featured_image', 'is_featured', 'is_breaking', 'views_count', 'published_at', 'author_id'])
-                    ->orderByDesc('published_at')
-                    ->limit(4)
-                    ->get()
-                    ->map(fn (Post $p) => self::serializePostStatic($p))
-                    ->values()
-                    ->all();
-            }
-
-            return $result;
-        });
-    }
-
     private function getCachedCategories(): Collection
     {
-        return Cache::remember('categories:nav', 3600, function () {
+        $locale = app()->getLocale();
+
+        return Cache::remember("categories:nav:{$locale}", 3600, function () {
             return Category::query()
                 ->where('is_active', true)
                 ->whereNull('parent_id')
-                ->with(['translations' => fn ($q) => $q->select(['category_id', 'locale', 'name'])])
+                ->with(['translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name'])])
                 ->select(['id', 'slug', 'parent_id'])
                 ->get();
         });
@@ -158,10 +128,10 @@ class HomePage extends Component
      */
     private static function serializePostStatic(Post $post): array
     {
-        $locale = 'bn';
-        $t = $post->translations->where('locale', $locale)->first() ?? $post->translations->first();
+        $locale = app()->getLocale();
+        $t = $post->translation;
         $cat = $post->categories->first();
-        $catT = $cat?->translations->where('locale', $locale)->first() ?? $cat?->translations->first();
+        $catT = $cat?->translation;
 
         return [
             'id' => $post->id,
@@ -181,8 +151,6 @@ class HomePage extends Component
 
     public function render(): \Illuminate\View\View
     {
-        $settings = Cache::remember('site:settings', 3600, fn () => Setting::query()->first());
-        $categories = $this->getCachedCategories();
         $latestEpaper = Cache::remember('epaper:latest', 1800, function () {
             return EPaper::query()
                 ->where('is_active', true)
@@ -191,10 +159,6 @@ class HomePage extends Component
                 ->first();
         });
 
-        return view('livewire.front.home-page', compact(
-            'categories',
-            'latestEpaper',
-            'settings',
-        ));
+        return view('livewire.front.home-page', compact('latestEpaper'));
     }
 }

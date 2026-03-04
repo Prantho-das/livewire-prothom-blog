@@ -2,10 +2,7 @@
 
 namespace App\Livewire\Front;
 
-use App\Models\Category;
 use App\Models\Post;
-use App\Models\Setting;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -20,8 +17,11 @@ class SearchPage extends Component
     public string $query = '';
 
     public ?int $lastId = null;
+
     public bool $hasMore = false;
+
     public int $perPage = 15;
+
     public int $total = 0;
 
     /** @var array<int, array<string, mixed>> */
@@ -50,36 +50,45 @@ class SearchPage extends Component
 
         $isMySQL = DB::getDriverName() !== 'sqlite';
         $term = trim($this->query);
+        $locale = app()->getLocale();
 
         $query = Post::query()
             ->published()
-            ->join('post_translations', 'posts.id', '=', 'post_translations.post_id')
-            ->where('post_translations.locale', 'bn')
-            ->orderByDesc('posts.id')
-            ->limit($this->perPage + 1)
-            ->select('posts.*');
+            ->with([
+                'translation' => fn ($q) => $q->select(['id', 'post_id', 'locale', 'title', 'excerpt']),
+                'categories' => fn ($q) => $q->select(['categories.id', 'categories.slug'])
+                    ->with(['translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name'])]),
+                'author' => fn ($q) => $q->select(['id', 'name']),
+            ])
+            ->select(['posts.id', 'posts.slug', 'posts.featured_image', 'posts.views_count', 'posts.published_at', 'posts.author_id'])
+            ->limit($this->perPage + 1);
 
         if ($this->lastId) {
             $query->where('posts.id', '<', $this->lastId);
         }
 
         if ($isMySQL) {
-            $booleanTerm = '+' . implode('* +', preg_split('/\s+/', $term)) . '*';
-            $query->whereRaw(
-                'MATCH(post_translations.title, post_translations.content) AGAINST(? IN BOOLEAN MODE)',
-                [$booleanTerm]
-            )->orderByRaw(
-                'MATCH(post_translations.title, post_translations.content) AGAINST(? IN BOOLEAN MODE) DESC',
-                [$term]
-            );
+            $booleanTerm = '+'.implode('* +', preg_split('/\s+/', $term)).'*';
+            $query->join('post_translations', 'posts.id', '=', 'post_translations.post_id')
+                ->where('post_translations.locale', $locale)
+                ->whereRaw(
+                    'MATCH(post_translations.title, post_translations.content) AGAINST(? IN BOOLEAN MODE)',
+                    [$booleanTerm]
+                )->orderByRaw(
+                    'MATCH(post_translations.title, post_translations.content) AGAINST(? IN BOOLEAN MODE) DESC',
+                    [$term]
+                );
         } else {
-            $query->where(function ($q) use ($term) {
-                $q->where('post_translations.title', 'LIKE', "%{$term}%")
-                  ->orWhere('post_translations.content', 'LIKE', "%{$term}%");
-            });
+            $query->whereHas('translations', function ($q) use ($term, $locale) {
+                $q->where('locale', $locale)
+                    ->where(function ($sub) use ($term) {
+                        $sub->where('title', 'LIKE', "%{$term}%")
+                            ->orWhere('content', 'LIKE', "%{$term}%");
+                    });
+            })->orderByDesc('posts.id');
         }
 
-        $results = $query->with(['translations', 'categories.translations', 'author'])->get();
+        $results = $query->get();
 
         $this->hasMore = $results->count() > $this->perPage;
         $chunk = $results->take($this->perPage);
@@ -104,10 +113,10 @@ class SearchPage extends Component
      */
     private function serializePost(Post $post): array
     {
-        $locale = 'bn';
-        $t = $post->translations->where('locale', $locale)->first() ?? $post->translations->first();
+        $locale = app()->getLocale();
+        $t = $post->translation;
         $cat = $post->categories->first();
-        $catT = $cat?->translations->where('locale', $locale)->first() ?? $cat?->translations->first();
+        $catT = $cat?->translation;
 
         return [
             'id' => $post->id,
@@ -125,16 +134,6 @@ class SearchPage extends Component
 
     public function render(): \Illuminate\View\View
     {
-        $categories = Cache::remember('categories:nav', 3600, function () {
-            return Category::query()
-                ->where('is_active', true)
-                ->whereNull('parent_id')
-                ->with('translations')
-                ->get();
-        });
-
-        $settings = Cache::remember('site:settings', 3600, fn () => Setting::query()->first());
-
-        return view('livewire.front.search-page', compact('categories', 'settings'));
+        return view('livewire.front.search-page');
     }
 }

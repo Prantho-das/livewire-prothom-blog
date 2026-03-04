@@ -1,6 +1,6 @@
 @php
-    $catName = ($category->translations->where('locale','bn')->first() ?? $category->translations->first())?->name ?? $category->slug;
-    $catDesc = ($category->translations->where('locale','bn')->first() ?? $category->translations->first())?->description ?? '';
+    $catName = ($category->translations->where('locale', app()->getLocale())->first() ?? $category->translations->first())?->name ?? $category->slug;
+    $catDesc = ($category->translations->where('locale', app()->getLocale())->first() ?? $category->translations->first())?->description ?? '';
 @endphp
 
 <div>
@@ -23,7 +23,7 @@
         @foreach($category->children as $child)
         <a href="{{ route('category', $child->slug) }}" wire:navigate wire:key="sub-{{ $child->id }}"
            class="px-4 py-1.5 border border-[#c0392b] text-[#c0392b] hover:bg-[#c0392b] hover:text-white text-sm font-bold rounded-full transition-all">
-            {{ $child->translations->where('locale','bn')->first()?->name ?? $child->slug }}
+            {{ $child->translations->where('locale', app()->getLocale())->first()?->name ?? $child->slug }}
         </a>
         @endforeach
     </div>
@@ -78,7 +78,7 @@
                         <a href="{{ route('category', $cat->slug) }}" wire:navigate wire:key="nav-cat-{{ $cat->id }}"
                            class="flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors
                                {{ $cat->slug === $category->slug ? 'bg-[#c0392b] text-white font-bold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#c0392b]' }}">
-                            <span>{{ $cat->translations->where('locale','bn')->first()?->name ?? $cat->slug }}</span>
+                            <span>{{ $cat->translations->where('locale', app()->getLocale())->first()?->name ?? $cat->slug }}</span>
                             <span class="opacity-60">›</span>
                         </a>
                     </li>

@@ -1,5 +1,5 @@
 @php
-    $locale = 'bn';
+    $locale = app()->getLocale();
     $translation = $post->translations->where('locale', $locale)->first() ?? $post->translations->first();
     $title = $translation?->title ?? 'শিরোনাম নেই';
     $excerpt = $translation?->excerpt ?? '';
@@ -14,7 +14,7 @@
         @foreach($post->categories->take(1) as $cat)
         <span class="text-gray-300">/</span>
         <a href="{{ route('category', $cat->slug) }}" wire:navigate class="hover:text-[#c0392b] transition-colors">
-            {{ $cat->translations->where('locale','bn')->first()?->name ?? $cat->slug }}
+            {{ $cat->translations->where('locale', app()->getLocale())->first()?->name ?? $cat->slug }}
         </a>
         @endforeach
         <span class="text-gray-300">/</span>
@@ -31,7 +31,7 @@
                 @foreach($post->categories as $cat)
                 <a href="{{ route('category', $cat->slug) }}" wire:navigate
                    class="category-badge bg-[#c0392b] text-white px-3 py-1 rounded hover:bg-[#a93226] transition-colors">
-                    {{ $cat->translations->where('locale','bn')->first()?->name ?? $cat->slug }}
+                    {{ $cat->translations->where('locale', app()->getLocale())->first()?->name ?? $cat->slug }}
                 </a>
                 @endforeach
                 @if($post->is_breaking)
@@ -117,7 +117,7 @@
                 <div class="flex flex-wrap gap-2">
                     @foreach($post->tags as $tag)
                     <span class="px-3 py-1.5 bg-gray-50 text-gray-600 text-sm rounded-full border border-gray-200 hover:bg-[#c0392b] hover:text-white hover:border-[#c0392b] transition-all cursor-pointer">
-                        #{{ $tag->translations->where('locale','bn')->first()?->name ?? $tag->translations->first()?->name ?? '' }}
+                        #{{ $tag->translations->where('locale', app()->getLocale())->first()?->name ?? $tag->translations->first()?->name ?? '' }}
                     </span>
                     @endforeach
                 </div>
@@ -169,9 +169,9 @@
                 </div>
                 @foreach($relatedPosts as $rp)
                 @php
-                    $rt = $rp->translations->where('locale','bn')->first() ?? $rp->translations->first();
+                    $rt = $rp->translations->where('locale', app()->getLocale())->first() ?? $rp->translations->first();
                     $rcat = $rp->categories->first();
-                    $rcatName = $rcat?->translations->where('locale','bn')->first()?->name ?? '';
+                    $rcatName = $rcat?->translations->where('locale', app()->getLocale())->first()?->name ?? '';
                 @endphp
                 <div wire:key="related-{{ $rp->id }}" class="flex gap-3 py-3 border-b border-gray-50 last:border-0 group">
                     @if($rp->featured_image)
@@ -207,7 +207,7 @@
                     @foreach($categories as $cat)
                     <a href="{{ route('category', $cat->slug) }}" wire:navigate wire:key="pc-cat-{{ $cat->id }}"
                        class="px-3 py-1.5 bg-gray-50 hover:bg-[#c0392b] hover:text-white text-gray-600 text-sm rounded-full border border-gray-100 transition-all">
-                        {{ $cat->translations->where('locale','bn')->first()?->name ?? $cat->slug }}
+                        {{ $cat->translations->where('locale', app()->getLocale())->first()?->name ?? $cat->slug }}
                     </a>
                     @endforeach
                 </div>
@@ -225,24 +225,24 @@
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             @foreach($relatedPosts as $rp)
-            @php
-                $rt = $rp->translations->where('locale','bn')->first() ?? $rp->translations->first();
-                $rcat = $rp->categories->first();
-                $serialized = [
-                    'id' => $rp->id,
-                    'slug' => $rp->slug,
-                    'featured_image' => $rp->featured_image,
-                    'is_featured' => false,
-                    'is_breaking' => false,
-                    'views_count' => $rp->views_count,
-                    'published_at' => $rp->published_at?->diffForHumans(),
-                    'title' => $rt?->title ?? 'শিরোনাম নেই',
-                    'excerpt' => $rt?->excerpt ?? '',
-                    'author' => $rp->author?->name,
-                    'category_name' => $rcat?->translations->where('locale','bn')->first()?->name ?? '',
-                    'category_slug' => $rcat?->slug ?? '',
-                ];
-            @endphp
+                @php
+                    $rt = $rp->translations->where('locale', app()->getLocale())->first() ?? $rp->translations->first();
+                    $rcat = $rp->categories->first();
+                    $serialized = [
+                        'id' => $rp->id,
+                        'slug' => $rp->slug,
+                        'featured_image' => $rp->featured_image,
+                        'is_featured' => false,
+                        'is_breaking' => false,
+                        'views_count' => $rp->views_count,
+                        'published_at' => $rp->published_at?->diffForHumans(),
+                        'title' => $rt?->title ?? 'শিরোনাম নেই',
+                        'excerpt' => $rt?->excerpt ?? '',
+                        'author' => $rp->author?->name,
+                        'category_name' => $rcat?->translations->where('locale', app()->getLocale())->first()?->name ?? '',
+                        'category_slug' => $rcat?->slug ?? '',
+                    ];
+                @endphp
             <x-post-card :post="$serialized" wire:key="more-{{ $rp->id }}" />
             @endforeach
         </div>

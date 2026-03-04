@@ -1,4 +1,10 @@
 <div>
+    @push('head')
+        @if(count($featuredPosts) > 0 && isset($featuredPosts[0]['featured_image']))
+            <link rel="preload" as="image" href="{{ Storage::url($featuredPosts[0]['featured_image']) }}" fetchpriority="high">
+        @endif
+    @endpush
+
     {{-- Hero: Featured Posts Grid --}}
     @if(count($featuredPosts) > 0)
     <section class="mb-10" aria-label="প্রধান সংবাদ">
@@ -16,6 +22,7 @@
                                 :src="$fp['featured_image'] ? Storage::url($fp['featured_image']) : null"
                                 :alt="$fp['title']"
                                 cls="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                :eager="true"
                             />
                         </div>
                         <div class="gradient-overlay absolute inset-0"></div>
@@ -73,29 +80,9 @@
         {{-- Main Content --}}
         <div class="lg:col-span-8 space-y-10">
 
-            {{-- Category sections --}}
+            {{-- Category sections (Lazy Loaded for Speed) --}}
             @foreach($categories->take(4) as $category)
-            @php
-                $categoryId = $category->id;
-                $catPosts = $categoryPosts[$categoryId] ?? [];
-                $catName = $category->translations->where('locale','bn')->first()?->name ?? $category->slug;
-            @endphp
-            @if(count($catPosts) > 0)
-            <section wire:key="cat-{{ $category->id }}" aria-label="{{ $catName }}">
-                <div class="flex items-center justify-between mb-5">
-                    <div class="flex items-center gap-3">
-                        <div class="w-1 h-7 bg-[#c0392b] rounded-full"></div>
-                        <h2 class="text-xl font-black text-gray-900">{{ $catName }}</h2>
-                    </div>
-                    <a href="{{ route('category', $category->slug) }}" wire:navigate class="text-sm text-[#c0392b] font-bold hover:underline">আরও দেখুন ›</a>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    @foreach($catPosts as $post)
-                    <x-post-card :post="$post" wire:key="catpost-{{ $post['id'] }}" />
-                    @endforeach
-                </div>
-            </section>
-            @endif
+                <livewire:front.category-section :category-id="$category->id" :key="'cat-sec-'.$category->id" />
             @endforeach
 
             {{-- Latest Posts (infinite scroll) --}}
@@ -150,7 +137,7 @@
                     </div>
                 </div>
                 <p class="text-gray-300 text-sm mb-4 line-clamp-2">
-                    {{ ($latestEpaper->translations->where('locale','bn')->first() ?? $latestEpaper->translations->first())?->title ?? 'আজকের সংস্করণ' }}
+                    {{ $latestEpaper->translation?->title ?? 'আজকের সংস্করণ' }}
                 </p>
                 <a href="{{ route('epaper') }}" wire:navigate class="block w-full bg-[#c0392b] hover:bg-[#a93226] text-white text-center text-sm font-bold py-3 rounded-xl transition-colors">
                     পড়ুন →
@@ -195,12 +182,12 @@
                     <h3 class="font-black text-gray-900 text-base">বিভাগসমূহ</h3>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    @foreach($categories as $cat)
-                    <a href="{{ route('category', $cat->slug) }}" wire:navigate wire:key="sidebar-cat-{{ $cat->id }}"
-                       class="px-3 py-1.5 bg-gray-50 hover:bg-[#c0392b] hover:text-white text-gray-600 text-sm rounded-full border border-gray-100 transition-all font-medium">
-                        {{ $cat->translations->where('locale','bn')->first()?->name ?? $cat->slug }}
-                    </a>
-                    @endforeach
+                     @foreach($categories as $cat)
+                     <a href="{{ route('category', $cat->slug) }}" wire:navigate wire:key="sidebar-cat-{{ $cat->id }}"
+                        class="px-3 py-1.5 bg-gray-50 hover:bg-[#c0392b] hover:text-white text-gray-600 text-sm rounded-full border border-gray-100 transition-all font-medium">
+                         {{ $cat->translation?->name ?? $cat->slug }}
+                     </a>
+                     @endforeach
                 </div>
             </div>
 

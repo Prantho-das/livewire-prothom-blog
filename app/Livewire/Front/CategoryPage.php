@@ -4,7 +4,6 @@ namespace App\Livewire\Front;
 
 use App\Models\Category;
 use App\Models\Post;
-use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -13,8 +12,11 @@ use Livewire\Component;
 class CategoryPage extends Component
 {
     public string $slug;
+
     public int $perPage = 15;
+
     public ?int $lastId = null;
+
     public bool $hasMore = true;
 
     /** @var array<int, array<string, mixed>> */
@@ -32,17 +34,23 @@ class CategoryPage extends Component
             return;
         }
 
-        $category = Category::query()->where('slug', $this->slug)->firstOrFail();
+        $category = Cache::remember("cat_id:{$this->slug}", 3600, fn () => Category::where('slug', $this->slug)->firstOrFail(['id']));
 
         $query = Post::query()
             ->published()
             ->whereHas('categories', fn ($q) => $q->where('categories.id', $category->id))
-            ->with(['translations', 'categories.translations', 'author'])
-            ->orderByDesc('id')
+            ->with([
+                'translation' => fn ($q) => $q->select(['id', 'post_id', 'locale', 'title', 'excerpt']),
+                'categories' => fn ($q) => $q->select(['categories.id', 'categories.slug'])
+                    ->with(['translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name'])]),
+                'author' => fn ($q) => $q->select(['id', 'name']),
+            ])
+            ->select(['posts.id', 'posts.slug', 'posts.featured_image', 'posts.is_featured', 'posts.is_breaking', 'posts.views_count', 'posts.published_at', 'posts.author_id'])
+            ->orderByDesc('posts.id')
             ->limit($this->perPage + 1);
 
         if ($this->lastId) {
-            $query->where('id', '<', $this->lastId);
+            $query->where('posts.id', '<', $this->lastId);
         }
 
         $results = $query->get();
@@ -64,10 +72,10 @@ class CategoryPage extends Component
      */
     private function serializePost(Post $post): array
     {
-        $locale = 'bn';
-        $t = $post->translations->where('locale', $locale)->first() ?? $post->translations->first();
+        $locale = app()->getLocale();
+        $t = $post->translation;
         $cat = $post->categories->first();
-        $catT = $cat?->translations->where('locale', $locale)->first() ?? $cat?->translations->first();
+        $catT = $cat?->translation;
 
         return [
             'id' => $post->id,
@@ -87,26 +95,21 @@ class CategoryPage extends Component
 
     public function render(): \Illuminate\View\View
     {
-        $category = Cache::remember("category:detail:{$this->slug}", 600, function () {
+        $locale = app()->getLocale();
+        $category = Cache::remember("category:detail:{$this->slug}:{$locale}", 600, function () {
             return Category::query()
                 ->where('slug', $this->slug)
-                ->with(['translations', 'children.translations'])
+                ->with([
+                    'translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name', 'description']),
+                    'children' => fn ($q) => $q->select(['id', 'slug', 'parent_id'])
+                        ->with(['translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name'])]),
+                ])
                 ->firstOrFail();
         });
 
-        $categories = Cache::remember('categories:nav', 3600, function () {
-            return Category::query()
-                ->where('is_active', true)
-                ->whereNull('parent_id')
-                ->with('translations')
-                ->get();
-        });
+        $title = $category->translation?->name ?? $category->slug;
 
-        $settings = Cache::remember('site:settings', 3600, fn () => Setting::query()->first());
-
-        $title = ($category->translations->where('locale', 'bn')->first() ?? $category->translations->first())?->name ?? $category->slug;
-
-        return view('livewire.front.category-page', compact('category', 'categories', 'settings'))
-            ->title($title . ' | ' . ($settings?->site_name ?? 'প্রথম ব্লগ'));
+        return view('livewire.front.category-page', compact('category'))
+            ->title($title);
     }
 }

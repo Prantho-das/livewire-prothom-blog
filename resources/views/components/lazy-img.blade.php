@@ -6,15 +6,20 @@
     $cls  : extra CSS classes (optional)
     $width/$height: optional dimensions for aspect ratio
 --}}
-@props(['src', 'alt', 'cls' => 'w-full h-full object-cover', 'w' => null, 'h' => null])
+@props(['src', 'alt', 'cls' => 'w-full h-full object-cover', 'w' => null, 'h' => null, 'eager' => false])
 
 @if($src)
 <img
-    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 3'%3E%3C/svg%3E"
-    data-src="{{ $src }}"
+    @if($eager)
+        src="{{ $src }}"
+        fetchpriority="high"
+    @else
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 3'%3E%3C/svg%3E"
+        data-src="{{ $src }}"
+        loading="lazy"
+    @endif
     alt="{{ $alt }}"
-    class="{{ $cls }} img-lazy"
-    loading="lazy"
+    class="{{ $cls }} {{ $eager ? '' : 'img-lazy' }}"
     decoding="async"
     @if($w) width="{{ $w }}" @endif
     @if($h) height="{{ $h }}" @endif

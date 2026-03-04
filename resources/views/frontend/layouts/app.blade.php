@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="bn" dir="ltr">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,9 +9,23 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    {{-- Non-blocking font load: media=print trick avoids render-blocking --}}
+
+    {{-- Preload critical font --}}
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;700&display=swap" as="style">
+
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap"></noscript>
+
+    {{-- SEO / Structured Data --}}
+    <script type="application/ld+json">
+    {
+        "@context": "https://Schema.org",
+        "@type": "NewsMediaOrganization",
+        "name": "{{ $settings?->site_name ?? 'প্রথম ব্লগ' }}",
+        "url": "{{ url('/') }}",
+        "logo": "{{ $settings?->logo ? Storage::url($settings->logo) : asset('logo.png') }}"
+    }
+    </script>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -46,6 +60,7 @@
         html { scroll-behavior:smooth; }
     </style>
 
+    @stack('head')
     @livewireStyles
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased">
@@ -112,6 +127,7 @@
 
                 {{-- Search + Mobile Toggle --}}
                 <div class="flex items-center gap-2">
+                    <livewire:language-switcher />
                     <a href="{{ route('search') }}" wire:navigate class="p-2 text-gray-500 hover:text-[#c0392b] transition-colors rounded-lg hover:bg-gray-50" aria-label="অনুসন্ধান">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z"/></svg>
                     </a>
@@ -141,7 +157,7 @@
                     <li>
                         <a href="{{ route('category', $cat->slug) }}" wire:navigate
                            class="block px-4 py-3 text-white text-sm font-semibold hover:bg-[#a93226] transition-colors whitespace-nowrap">
-                            {{ $cat->translations->where('locale','bn')->first()?->name ?? $cat->translations->first()?->name ?? $cat->slug }}
+                            {{ $cat->translation?->name ?? $cat->slug }}
                         </a>
                     </li>
                     @endforeach
@@ -160,7 +176,7 @@
                     @foreach($categories as $cat)
                     <li>
                         <a href="{{ route('category', $cat->slug) }}" wire:navigate class="block px-4 py-2.5 text-white text-sm font-medium hover:bg-[#a93226]">
-                            {{ $cat->translations->where('locale','bn')->first()?->name ?? $cat->slug }}
+                            {{ $cat->translation?->name ?? $cat->slug }}
                         </a>
                     </li>
                     @endforeach
@@ -172,7 +188,7 @@
     </header>
 
     {{-- Breaking News Ticker (persisted) --}}
-    @if(isset($breakingPosts) && count($breakingPosts ?? []) > 0)
+    @if(isset($breakingPosts) && count($breakingPosts) > 0)
     <div wire:navigate.preserve class="bg-white border-b border-gray-100 py-2 overflow-hidden">
         <div class="max-w-7xl mx-auto px-4 flex items-center gap-3">
             <span class="flex-shrink-0 bg-[#c0392b] text-white text-xs font-black px-3 py-1 rounded uppercase tracking-wide animate-pulse">সর্বশেষ</span>
@@ -227,7 +243,7 @@
                         <li>
                             <a href="{{ route('category', $cat->slug) }}" wire:navigate class="text-gray-400 hover:text-white text-sm transition-colors flex items-center gap-1.5">
                                 <span class="text-[#c0392b] font-bold">›</span>
-                                {{ $cat->translations->where('locale','bn')->first()?->name ?? $cat->slug }}
+                                {{ $cat->translation?->name ?? $cat->slug }}
                             </a>
                         </li>
                         @endforeach

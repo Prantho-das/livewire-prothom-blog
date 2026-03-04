@@ -2,12 +2,9 @@
 
 namespace App\Livewire\Front;
 
-use App\Models\Category;
 use App\Models\Post;
-use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('frontend.layouts.app')]
@@ -27,37 +24,41 @@ class PostPage extends Component
 
     public function render(): \Illuminate\View\View
     {
-        $post = Cache::remember("post:detail:{$this->slug}", 300, function () {
+        $locale = app()->getLocale();
+        $post = Cache::remember("post:detail:{$this->slug}:{$locale}", 300, function () {
             return Post::query()
                 ->where('slug', $this->slug)
                 ->published()
-                ->with(['translations', 'categories.translations', 'author', 'tags.translations', 'comments'])
+                ->with([
+                    'translation',
+                    'categories' => fn ($q) => $q->select(['categories.id', 'categories.slug'])
+                        ->with(['translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name'])]),
+                    'author' => fn ($q) => $q->select(['id', 'name']),
+                    'tags' => fn ($q) => $q->select(['tags.id', 'tags.slug'])
+                        ->with(['translation' => fn ($q) => $q->select(['id', 'tag_id', 'locale', 'name'])]),
+                    'comments.user' => fn ($q) => $q->select(['id', 'name']),
+                ])
                 ->firstOrFail();
         });
 
-        $pageTitle = ($post->translations->where('locale', 'bn')->first() ?? $post->translations->first())?->title ?? 'সংবাদ';
+        $pageTitle = $post->translation?->title ?? 'সংবাদ';
 
-        $relatedPosts = Cache::remember("post:related:{$post->id}", 300, function () use ($post) {
+        $relatedPosts = Cache::remember("post:related:{$post->id}:{$locale}", 300, function () use ($post) {
             return Post::query()
                 ->published()
                 ->whereHas('categories', fn ($q) => $q->whereIn('categories.id', $post->categories->pluck('id')))
-                ->where('id', '!=', $post->id)
-                ->with(['translations', 'categories.translations'])
-                ->orderByDesc('published_at')
+                ->where('posts.id', '!=', $post->id)
+                ->with([
+                    'translation' => fn ($q) => $q->select(['id', 'post_id', 'locale', 'title', 'excerpt']),
+                    'categories' => fn ($q) => $q->select(['categories.id', 'categories.slug'])
+                        ->with(['translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name'])]),
+                ])
+                ->select(['posts.id', 'posts.slug', 'posts.featured_image', 'posts.published_at'])
+                ->latest('published_at')
                 ->limit(4)
                 ->get();
         });
 
-        $categories = Cache::remember('categories:nav', 3600, function () {
-            return Category::query()
-                ->where('is_active', true)
-                ->whereNull('parent_id')
-                ->with('translations')
-                ->get();
-        });
-
-        $settings = Cache::remember('site:settings', 3600, fn () => Setting::query()->first());
-
-        return view('livewire.front.post-page', compact('post', 'relatedPosts', 'categories', 'settings', 'pageTitle'));
+        return view('livewire.front.post-page', compact('post', 'relatedPosts', 'pageTitle'));
     }
 }

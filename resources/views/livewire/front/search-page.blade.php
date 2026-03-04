@@ -119,7 +119,7 @@
                     @foreach($categories as $cat)
                     <a href="{{ route('category', $cat->slug) }}" wire:navigate wire:key="srch-cat-{{ $cat->id }}"
                        class="px-3 py-1.5 bg-gray-50 hover:bg-[#c0392b] hover:text-white text-gray-600 text-sm rounded-full border border-gray-100 transition-all">
-                        {{ $cat->translations->where('locale','bn')->first()?->name ?? $cat->slug }}
+                        {{ $cat->translations->where('locale', app()->getLocale())->first()?->name ?? $cat->slug }}
                     </a>
                     @endforeach
                 </div>
