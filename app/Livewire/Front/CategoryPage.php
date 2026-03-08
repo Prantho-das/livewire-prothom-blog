@@ -38,7 +38,8 @@ class CategoryPage extends Component
 
         $query = Post::query()
             ->published()
-            ->whereHas('categories', fn ($q) => $q->where('categories.id', $category->id))
+            ->join('category_post', 'posts.id', '=', 'category_post.post_id')
+            ->where('category_post.category_id', $category->id)
             ->with([
                 'translation' => fn ($q) => $q->select(['id', 'post_id', 'locale', 'title', 'excerpt']),
                 'categories' => fn ($q) => $q->select(['categories.id', 'categories.slug'])

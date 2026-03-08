@@ -54,13 +54,12 @@ class SearchPage extends Component
 
         $query = Post::query()
             ->published()
+            ->select(['posts.id', 'posts.slug', 'posts.featured_image', 'posts.views_count', 'posts.published_at', 'posts.author_id'])
             ->with([
-                'translation' => fn ($q) => $q->select(['id', 'post_id', 'locale', 'title', 'excerpt']),
                 'categories' => fn ($q) => $q->select(['categories.id', 'categories.slug'])
                     ->with(['translation' => fn ($q) => $q->select(['id', 'category_id', 'locale', 'name'])]),
                 'author' => fn ($q) => $q->select(['id', 'name']),
             ])
-            ->select(['posts.id', 'posts.slug', 'posts.featured_image', 'posts.views_count', 'posts.published_at', 'posts.author_id'])
             ->limit($this->perPage + 1);
 
         if ($this->lastId) {
@@ -71,6 +70,16 @@ class SearchPage extends Component
             $booleanTerm = '+'.implode('* +', preg_split('/\s+/', $term)).'*';
             $query->join('post_translations', 'posts.id', '=', 'post_translations.post_id')
                 ->where('post_translations.locale', $locale)
+                ->addSelect([
+                    'title_search' => DB::table('post_translations')
+                        ->whereColumn('post_id', 'posts.id')
+                        ->where('locale', $locale)
+                        ->select('title'),
+                    'excerpt_search' => DB::table('post_translations')
+                        ->whereColumn('post_id', 'posts.id')
+                        ->where('locale', $locale)
+                        ->select('excerpt'),
+                ])
                 ->whereRaw(
                     'MATCH(post_translations.title, post_translations.content) AGAINST(? IN BOOLEAN MODE)',
                     [$booleanTerm]
@@ -79,13 +88,14 @@ class SearchPage extends Component
                     [$term]
                 );
         } else {
-            $query->whereHas('translations', function ($q) use ($term, $locale) {
-                $q->where('locale', $locale)
-                    ->where(function ($sub) use ($term) {
-                        $sub->where('title', 'LIKE', "%{$term}%")
-                            ->orWhere('content', 'LIKE', "%{$term}%");
-                    });
-            })->orderByDesc('posts.id');
+            $query->with(['translation' => fn ($q) => $q->select(['id', 'post_id', 'locale', 'title', 'excerpt'])])
+                ->whereHas('translations', function ($q) use ($term, $locale) {
+                    $q->where('locale', $locale)
+                        ->where(function ($sub) use ($term) {
+                            $sub->where('title', 'LIKE', "%{$term}%")
+                                ->orWhere('content', 'LIKE', "%{$term}%");
+                        });
+                })->orderByDesc('posts.id');
         }
 
         $results = $query->get();
@@ -124,8 +134,8 @@ class SearchPage extends Component
             'featured_image' => $post->featured_image,
             'views_count' => $post->views_count,
             'published_at' => $post->published_at?->diffForHumans(),
-            'title' => $t?->title ?? 'শিরোনাম নেই',
-            'excerpt' => $t?->excerpt ?? '',
+            'title' => $post->title_search ?? $t?->title ?? 'শিরোনাম নেই',
+            'excerpt' => $post->excerpt_search ?? $t?->excerpt ?? '',
             'author' => $post->author?->name,
             'category_name' => $catT?->name ?? '',
             'category_slug' => $cat?->slug ?? '',

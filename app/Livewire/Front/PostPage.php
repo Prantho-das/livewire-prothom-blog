@@ -16,10 +16,13 @@ class PostPage extends Component
     {
         $this->slug = $slug;
 
-        Post::query()
+        $post = Post::query()
             ->where('slug', $slug)
             ->published()
-            ->increment('views_count');
+            ->select('id')
+            ->firstOrFail();
+
+        \App\Jobs\IncrementPostView::dispatch($post->id);
     }
 
     public function render(): \Illuminate\View\View
